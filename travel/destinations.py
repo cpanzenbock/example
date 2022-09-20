@@ -1,6 +1,10 @@
+from locale import currency
 from flask import redirect, url_for, Blueprint, render_template
 from .models import Destination, Comment
 from .forms import DestinationForm, CommentForm
+from . import db
+import os
+from werkzeug.utils import secure_filename
 
 # Use of blue print to group routes,
 # name - first argument is the blue print name
@@ -8,11 +12,28 @@ from .forms import DestinationForm, CommentForm
 bp = Blueprint("destination", __name__, url_prefix="/destinations")
 
 
-@bp.route("/<id>")
-def show(id):
-    destination = get_destination()
-    # dest = destination[id]
-    return render_template("destinations/show.html", destination=destination)
+def check_upload_file(form):
+    # get file data from form
+    fp = form.image.data
+    filename = fp.filename
+    # get the current path of the module file… store image file relative to this path
+    BASE_PATH = os.path.dirname(__file__)
+    # upload file location – directory of this file/static/image
+    upload_path = os.path.join(BASE_PATH, "static/image", secure_filename(filename))
+    # store relative path in DB as image location in HTML is relative
+    db_upload_path = "/static/image/" + secure_filename(filename)
+    # save the file and return the db upload path
+    fp.save(upload_path)
+    return db_upload_path
+
+
+@bp.route("/<urlId>")
+def show(urlId):
+    cmtform = CommentForm()
+    destination = Destination.query.filter_by(id=urlId).first()
+    return render_template(
+        "destinations/show.html", form=cmtform, destination=destination
+    )
 
 
 @bp.route("/<id>/comments", methods=["GET", "POST"])
@@ -26,11 +47,18 @@ def comments(id):
 
 @bp.route("/create", methods=["GET", "POST"])
 def dest_create():
-    destform = DestinationForm()
-    if destform.validate_on_submit():
-        # Do a bunch of processing of the form data TODO
+    form = DestinationForm()
+    if form.validate_on_submit():
+        destination = Destination(
+            name=form.name.data,
+            description=form.description.data,
+            image=form.image.data,
+            currency=form.currency.data,
+        )
+        db.session.add(destination)
+        db.session.commit()
         return redirect(url_for("destination.dest_create"))
-    return render_template("destinations/create.html", form=destform)
+    return render_template("destinations/create.html", form=form)
 
 
 def get_destination():

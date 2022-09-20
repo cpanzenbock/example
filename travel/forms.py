@@ -7,9 +7,12 @@ from wtforms.fields import (
     EmailField,
     PasswordField,
     RadioField,
+    FileField,
 )
 from wtforms.validators import InputRequired, Length
+from flask_wtf.file import FileRequired, FileAllowed
 
+ALLOWED_FILE = {"PNG", "JPG", "png", "jpg"}
 
 class DestinationForm(FlaskForm):
     name = StringField(
@@ -20,7 +23,10 @@ class DestinationForm(FlaskForm):
     description = TextAreaField(
         "Description", validators=[Length(min=6), InputRequired()]
     )
-    image = StringField("Cover Image", validators=[InputRequired()])
+    image = FileField(
+        "Cover Image", validators=[FileRequired("Image Necessary"),
+        FileAllowed(ALLOWED_FILE, message='Only supports JPG or PNG')]
+    )
     currency = StringField("Currency", validators=[InputRequired()])
     submit = SubmitField("Create")
 
